@@ -1,3 +1,9 @@
+#!/usr/bin/python
+#
+# Copyright (c) 2020 Saurabh Malpani (@saurabh3796)
+#
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 from __future__ import absolute_import, division, print_function
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
@@ -6,10 +12,10 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 ---
-module: azure_notificationhub_info
-short_description: Get Azure Notification Hub
+module: azure_eventhub_info
+short_description: Get Azure Event Hub
 description:
-    - Get facts of Azure Notification Hub
+    - Get facts of Azure Event Hub
 options:
     resource_group:
         description:
@@ -22,47 +28,46 @@ options:
         type: str
     name:
         description:
-            - The name of the Notification hub.
+            - The name of the Event hub.
         type: str
 extends_documentation_fragment:
 - azure.azcollection.azure
 author:
-    - Praveen Ghuge (@praveenghuge)
-    - Karl Dasan (@karldas30)
+    - Saurabh Malpani (@saurabh3796)
 '''
 
 
 EXAMPLES = '''
-  - name: Get facts of specific notification hub
-    community.azure.azure_rm_notificationhub_info:
+  - name: Get facts of specific Event hub
+    community.azure.azure_rm_eventhub_info:
       resource_group: myResourceGroup
-      name: myNotificationHub
+      name: myEventHub
 '''
 
 RETURN = '''
 state:
     description:
-        - Current state of the Notification Hub namesapce or Notification Hub.
+        - Current state of the Event Hub namesapce or Event Hub.
     returned: always
     type: dict
-    sample: {
-        "additional_properties": {},
-        "critical": false,
-        "data_center": null,
-        "enabled": true,
-        "location": "eastus2",
-        "metric_id": null,
-        "name": "testnaedd3d22d3w",
-        "namespace_type": "NotificationHub",
-        "provisioning_state": "Succeeded",
-        "region": null,
-        "scale_unit": null,
-        "service_bus_endpoint": "https://testnaedd3d22d3w.servicebus.windows.net:443/",
-        "sku": "Free",
-        "tags": {
-            "a": "b"
-        },
-        "type": "Microsoft.NotificationHubs/namespaces"
+    sample:{
+            "additional_properties": {},
+            "created_at": "2021-04-19T12:49:46.597Z",
+            "critical": null,
+            "data_center": null,
+            "status": "Active",
+            "location": "eastus",
+            "metric_id": "149f0952-6f3d-48ba-9e98-57011575cbbd:eventhubtestns1753",
+            "name": "eventhubtestns1753",
+            "namespace_type": null,
+            "provisioning_state": "Succeeded",
+            "region": null,
+            "scale_unit": null,
+            "service_bus_endpoint": "https://eventhubtestns1753.servicebus.windows.net:443/",
+            "sku": "Basic",
+            "tags": {},
+            "type": "Microsoft.EventHub/Namespaces",
+            "updated_at": "2021-04-19T12:54:33.397Z"
     }
 '''
 
@@ -83,13 +88,13 @@ class AzureEventHubInfo(AzureRMModuleBase):
             ),
             namespace_name=dict(
                 type='str',
-                required=True
+                required=False
             ),
             name=dict(
                 type='str',
             )
         )
-        
+
         # store the results of the module operation
         self.results = dict(
             changed=False)
@@ -106,21 +111,18 @@ class AzureEventHubInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
 
-        # if self.name is None and self.namespace_name is None:
-        #     results = self.list_all_namespace()
-        #     self.results['namespaces'] = [
-        #         self.namespace_to_dict(x) for x in results]
-        # elif self.name and self.namespace_name:
-        #     results = self.get_notification_hub()
-        #     self.results['notificationhub'] = [
-        #         self.notification_hub_to_dict(x) for x in results]
-        # elif self.namespace_name:
-        #     results = self.get_namespace()
-        #     self.results['namespace'] = [
-        #         self.namespace_to_dict(x) for x in results]
-        results = self.get_notification_hub()
-        self.results['notificationhub'] = [
-                self.notification_hub_to_dict(x) for x in results]
+        if self.name and self.namespace_name and self.resource_group:
+            results = self.get_event_hub()
+            self.results['eventhub'] = [
+                self.event_hub_to_dict(x) for x in results]
+        elif self.namespace_name:
+            results = self.get_namespace()
+            self.results['namespace'] = [
+                self.namespace_to_dict(x) for x in results]
+        elif self.name is None and self.namespace_name is None:
+            results = self.list_all_namespace()
+            self.results['namespaces'] = [
+                self.namespace_to_dict(x) for x in results]
         return self.results
 
     def get_namespace(self):
@@ -135,30 +137,31 @@ class AzureEventHubInfo(AzureRMModuleBase):
             self.fail('Could not get info for namespace. {0}').format(
                 str(e))
 
-        if response and self.has_tags(response.tags, self.tags):
+        if response:
             results = [response]
         return results
 
-    def get_notification_hub(self):
+    def get_event_hub(self):
         response = None
         results = []
+
         try:
             response = self.event_hub_client.event_hubs.get(
                 self.resource_group, self.namespace_name, self.name)
-            self.log("Response : {0}".format(response))
 
         except CloudError as e:
-            self.fail('Could not get info for notification hub. {0}').format(
+            self.fail('Could not get info for event hub. {0}').format(
                 str(e))
 
-        if response and self.has_tags(response.tags, self.tags):
+        if response:
             results = [response]
         return results
 
     def list_all_namespace(self):
         self.log('List items for resource group')
         try:
-            response = self.event_hub_client.namespaces.list(
+            # print(dir(self.event_hub_client.namespaces))
+            response = self.event_hub_client.namespaces.list_by_resource_group(
                 self.resource_group)
 
         except CloudError as exc:
@@ -167,12 +170,11 @@ class AzureEventHubInfo(AzureRMModuleBase):
 
         results = []
         for item in response:
-            if self.has_tags(item.tags, self.tags):
-                results.append(item)
+            results.append(item)
         return results
 
     def namespace_to_dict(self, item):
-        # turn notification hub object into a dictionary (serialization)
+        # turn event hub object into a dictionary (serialization)
         namespace = item.as_dict()
         result = dict(
             additional_properties=namespace.get(
@@ -193,39 +195,31 @@ class AzureEventHubInfo(AzureRMModuleBase):
             enabled=namespace.get('enabled', None),
             critical=namespace.get('critical', None),
             data_center=namespace.get('data_center', None),
-            namespace_type=namespace.get('namespace_type', None)
+            namespace_type=namespace.get('namespace_type', None),
+            updated_at=namespace.get('updated_at', None),
+            created_at=namespace.get('created_at', None),
+            is_auto_inflate_enabled=namespace.get(
+                'is_auto_inflate_enabled', None),
+            maximum_throughput_units=namespace.get(
+                'maximum_throughput_units', None)
         )
         return result
 
-    def notification_hub_to_dict(self, item):
-        # turn notification hub object into a dictionary (serialization)
-        notification_hub = item.as_dict()
-        print("present notification hub********************8")
-
-        print(notification_hub)
-        
-        # result = dict(
-        #     additional_properties=notification_hub.get(
-        #         'additional_properties', {}),
-        #     name=notification_hub.get('name', None),
-        #     type=notification_hub.get('type', None),
-        #     location=notification_hub.get(
-        #         'location', '').replace(' ', '').lower(),
-        #     tags=notification_hub.get('tags', None),
-        #     name_properties_name=notification_hub.get(
-        #         'name_properties_name', None),
-        #     registration_ttl=notification_hub.get('registration_ttl', None),
-        #     authorization_rules=notification_hub.get(
-        #         'authorization_rules', None),
-        #     apns_credential=notification_hub.get(
-        #         'apns_credential', None),
-        #     wns_credential=notification_hub.get('wns_credential', None),
-        #     gcm_credential=notification_hub.get('gcm_credential', None),
-        #     mpns_credential=notification_hub.get('mpns_credential', None),
-        #     adm_credential=notification_hub.get('adm_credential', None),
-        #     baidu_credential=notification_hub.get('baidu_credential', None)
-        # )
-        return notification_hub
+    def event_hub_to_dict(self, item):
+        # turn event hub object into a dictionary (serialization)
+        event_hub = item.as_dict()
+        result = dict()
+        if item.additional_properties:
+            result['additional_properties'] = item.additional_properties
+        result['name'] = event_hub.get('name', None)
+        result['partition_ids'] = event_hub.get('partition_ids', None)
+        result['created_at'] = event_hub.get('created_at', None)
+        result['updated_at'] = event_hub.get('updated_at', None)
+        result['message_retention_in_days'] = event_hub.get(
+            'message_retention_in_days', None)
+        result['partition_count'] = event_hub.get('partition_count', None)
+        result['status'] = event_hub.get('status', None)
+        return result
 
 
 def main():
